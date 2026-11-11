@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write   # чтобы публиковать APK в Releases
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,7 +29,22 @@ jobs:
       - name: Сборка APK
         run: ./gradlew --no-daemon assembleDebug
 
+      - name: Переименовать APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk peremena.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: peremena-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: peremena.apk
+
+      # Каждая сборка с ветки main — отдельный релиз. Постоянная ссылка на свежий APK:
+      # https://github.com/<владелец>/<репозиторий>/releases/latest/download/peremena.apk
+      - name: Опубликовать в Releases
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Сборка ${{ github.run_number }}
+          body: Автосборка из коммита ${{ github.sha }}
+          files: peremena.apk
+          make_latest: true
